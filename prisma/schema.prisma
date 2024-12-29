@@ -1,0 +1,113 @@
+// This is your Prisma schema file
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  restaurant_manager
+  customer
+  driver
+}
+
+enum PaymentStatus {
+  paid
+  unpaid
+  deposit
+}
+
+enum OrderStatus {
+  pending
+  preparing
+  ready
+  on_the_way
+  delivered
+  cancelled
+}
+
+model User {
+  id              Int       @id @default(autoincrement()) @map("user_id")
+  name            String    @db.VarChar(255)
+  email           String    @unique @db.VarChar(255)
+  phoneNumber     String?   @map("phone_number") @db.VarChar(15)
+  role            UserRole
+
+  // Relations
+  managedOrders   Order[]   @relation("RestaurantManager")
+  customerOrders  Order[]   @relation("Customer")
+  driverOrders    Order[]   @relation("Driver")
+  cartItems       Cart[]
+
+  @@map("users")
+}
+
+model Order {
+  id                  Int           @id @default(autoincrement()) @map("order_id")
+  restaurantManager   User          @relation("RestaurantManager", fields: [restaurantManagerId], references: [id])
+  restaurantManagerId Int           @map("restaurant_manager_id")
+  customer            User          @relation("Customer", fields: [customerId], references: [id])
+  customerId          Int           @map("customer_id")
+  driver              User?         @relation("Driver", fields: [driverId], references: [id])
+  driverId            Int?          @map("driver_id")
+  orderTime           DateTime      @default(now()) @map("order_time")
+  deliveryAddressFrom String        @map("delivery_address_from") @db.Text
+  deliveryAddressTo   String        @map("delivery_address_to") @db.Text
+  deliveryCost        Decimal?      @map("delivery_cost") @db.Decimal(10, 2)
+  contactPersonName   String        @map("contact_person_name") @db.VarChar(255)
+  contactPersonPhone  String        @map("contact_person_phone") @db.VarChar(15)
+  totalPrice         Decimal       @map("total_price") @db.Decimal(10, 2)
+  paymentStatus      PaymentStatus @default(unpaid) @map("payment_status")
+  orderStatus        OrderStatus   @default(pending) @map("order_status")
+  notificationStatus Boolean       @default(false) @map("notification_status")
+  
+  // Relations
+  records            OrderRecord[]
+
+  @@map("orders")
+}
+
+model Dish {
+  id            Int           @id @default(autoincrement()) @map("dish_id")
+  name          String        @map("dish_name") @db.VarChar(255)
+  availability  Boolean       @default(true)
+  picture       String?       @db.Text
+  price         Decimal       @db.Decimal(10, 2)
+  description   String?       @db.Text
+  flags         Json?
+
+  // Relations
+  cartItems     Cart[]
+  orderRecords  OrderRecord[]
+
+  @@map("dishes")
+}
+
+model Cart {
+  id          Int      @id @default(autoincrement()) @map("cart_id")
+  customer    User     @relation(fields: [customerId], references: [id])
+  customerId  Int      @map("customer_id")
+  dish        Dish     @relation(fields: [dishId], references: [id])
+  dishId      Int      @map("dish_id")
+  quantity    Int      @default(1)
+
+  @@map("cart")
+}
+
+model OrderRecord {
+  id          Int         @id @default(autoincrement()) @map("record_id")
+  order       Order       @relation(fields: [orderId], references: [id])
+  orderId     Int         @map("order_id")
+  dish        Dish?       @relation(fields: [dishId], references: [id])
+  dishId      Int?        @map("dish_id")
+  quantity    Int?
+  price       Decimal?    @db.Decimal(10, 2)
+  changeTime  DateTime    @default(now()) @map("change_time")
+  status      OrderStatus
+  note        String?     @db.Text
+
+  @@map("order_records")
+}

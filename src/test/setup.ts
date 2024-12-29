@@ -1,0 +1,1 @@
+// This file can be empty since we don't need authentication setup anymore
